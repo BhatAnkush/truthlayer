@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { extractArticle } from "@/lib/scraper";
 import { prepareText } from "@/lib/chunker";
 import { callGroq } from "@/lib/groq";
 import { ANALYSE_SYSTEM } from "@/lib/prompts";
 import prisma from "@/lib/prisma";
+
+export const runtime = "nodejs";
 
 const ClaimSchema = z.object({
   id: z.string(),
@@ -34,6 +37,14 @@ export type AnalysisResult = z.infer<typeof AnalysisSchema>;
 
 export async function POST(req: NextRequest) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: "unauthorized", message: "Please sign in to analyze articles." },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { url, text } = body as { url?: string; text?: string };
 
@@ -99,6 +110,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: analysis.id, result });
   } catch (err) {
     console.error("Analysis error:", err);
+
+    const message = err instanceof Error ? err.message : "";
+    if (
+      message.includes("Groq API key is missing") ||
+      message.includes("Could not reach Groq API")
+    ) {
+      return NextResponse.json(
+        { error: "ai_unavailable", message },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       { error: "server_error", message: "Something went wrong. Please try again." },
       { status: 500 }

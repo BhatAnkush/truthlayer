@@ -1,4 +1,6 @@
 import URLInput from "@/components/URLInput";
+import { BarChart3, Link2, Map } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export default function Home() {
   return (
@@ -24,17 +26,17 @@ export default function Home() {
           <FeatureCard
             title="Evidence Board"
             description="Every claim laid out as an interactive graph. See how arguments connect, contradict, and depend on each other."
-            icon="🗺️"
+            icon={Map}
           />
           <FeatureCard
             title="Manipulation Score"
             description="Five dimensions — fear language, urgency bait, false equivalence, missing sources, and emotional appeals."
-            icon="📊"
+            icon={BarChart3}
           />
           <FeatureCard
             title="Shareable Analysis"
             description="Every analysis gets a permanent public URL. Share with anyone — no account needed."
-            icon="🔗"
+            icon={Link2}
           />
         </div>
       </section>
@@ -45,15 +47,15 @@ export default function Home() {
 function FeatureCard({
   title,
   description,
-  icon,
+  icon: Icon,
 }: {
   title: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
 }) {
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
-      <div className="mb-3 text-2xl">{icon}</div>
+      <Icon className="mb-3 h-6 w-6 text-gray-300" />
       <h3 className="mb-2 text-sm font-semibold text-gray-100">{title}</h3>
       <p className="text-sm leading-relaxed text-gray-500">{description}</p>
     </div>
