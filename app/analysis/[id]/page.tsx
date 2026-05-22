@@ -1,5 +1,7 @@
 import Link from "next/link";
-import prisma from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
 import type { AnalysisResult } from "@/app/api/analyse/route";
 import AnalysisClient from "./AnalysisClient";
 
@@ -8,10 +10,15 @@ interface Props {
 }
 
 export default async function AnalysisPage({ params }: Props) {
+  const { userId } = await auth();
+  if (!userId) {
+    redirect("/");
+  }
+
   const { id } = await params;
   const analysis = await prisma.analysis.findUnique({ where: { id } });
 
-  if (!analysis) {
+  if (!analysis || analysis.createdBy !== userId) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950 px-4 text-center">
         <h1 className="mb-3 text-2xl font-bold text-white">

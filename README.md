@@ -4,8 +4,7 @@
 
 TruthLayer uses AI to dissect any news article — separating facts from opinions, spotting logical fallacies, measuring manipulation, and visualising it all as an interactive evidence board.
 
-![TruthLayer](https://img.shields.io/badge/Next.js-14-black?style=flat-square) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?style=flat-square) ![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-orange?style=flat-square) ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
-
+![TruthLayer](https://img.shields.io/badge/Next.js-14-black?style=flat-square) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?style=flat-square) ![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-orange?style=flat-square)
 ---
 
 ## The problem
@@ -37,17 +36,17 @@ Paste any news article URL. TruthLayer:
 
 ## Tech stack
 
-| Layer | Technology | Why |
-|---|---|---|
-| Framework | Next.js 14 (App Router) | Server components, API routes, file-based routing |
-| Language | TypeScript (strict) | Type safety across the full stack |
-| Styling | Tailwind CSS + shadcn/ui | Fast, consistent, dark-mode-first UI |
-| AI | Groq API (llama-3.3-70b-versatile) | Free tier, extremely fast inference |
-| Scraping | Mozilla Readability + JSDOM | Same engine as Firefox Reader Mode |
-| Graph UI | React Flow + Dagre | Interactive evidence board with auto-layout |
-| Auth | Clerk | Google OAuth, session management, pre-built UI |
-| Database | Neon Postgres + Prisma | Serverless Postgres, free tier, type-safe ORM |
-| Deployment | Vercel | Zero-config Next.js deployment |
+| Layer      | Technology                         | Why                                               |
+| ---------- | ---------------------------------- | ------------------------------------------------- |
+| Framework  | Next.js 14 (App Router)            | Server components, API routes, file-based routing |
+| Language   | TypeScript (strict)                | Type safety across the full stack                 |
+| Styling    | Tailwind CSS + shadcn/ui           | Fast, consistent, dark-mode-first UI              |
+| AI         | Groq API (llama-3.3-70b-versatile) | Free tier, extremely fast inference               |
+| Scraping   | Mozilla Readability + JSDOM        | Same engine as Firefox Reader Mode                |
+| Graph UI   | React Flow + Dagre                 | Interactive evidence board with auto-layout       |
+| Auth       | Clerk                              | Google OAuth, session management, pre-built UI    |
+| Database   | Neon Postgres + Prisma             | Serverless Postgres, free tier, type-safe ORM     |
+| Deployment | Vercel                             | Zero-config Next.js deployment                    |
 
 ---
 
@@ -94,6 +93,7 @@ DATABASE_URL=your_neon_postgres_connection_string
 ```
 
 **Where to get each key:**
+
 - `GROQ_API_KEY` → [console.groq.com](https://console.groq.com) → API Keys
 - Clerk keys → [dashboard.clerk.com](https://dashboard.clerk.com) → your app → API Keys
 - `DATABASE_URL` → [neon.tech](https://neon.tech) → your project → Connection string
@@ -175,6 +175,7 @@ Articles over ~6,000 tokens would exceed optimal context. The chunker:
 The cleaned text is sent to Groq (llama-3.3-70b-versatile) with a structured prompt that forces JSON output. The response is validated with Zod before being saved, and retried once with a stricter prompt if validation fails.
 
 Each analysis returns:
+
 - 6–12 classified claims with confidence scores and reasoning
 - Logical connections between related claims
 - Manipulation score across 5 dimensions
@@ -185,12 +186,12 @@ Each analysis returns:
 
 Claims become React Flow nodes. Dagre handles automatic layout so nodes never overlap. Edges between nodes show logical relationships. Node colour encodes claim type at a glance:
 
-| Colour | Type |
-|---|---|
-| Teal | Fact |
-| Amber | Opinion |
-| Coral | Logical fallacy |
-| Gray | Missing context |
+| Colour | Type            |
+| ------ | --------------- |
+| Teal   | Fact            |
+| Amber  | Opinion         |
+| Coral  | Logical fallacy |
+| Gray   | Missing context |
 
 Clicking a node opens a side drawer with the full claim text and the AI's reasoning for its classification.
 
@@ -198,16 +199,16 @@ Clicking a node opens a side drawer with the full claim text and the AI's reason
 
 ## Environment variables reference
 
-| Variable | Required | Description |
-|---|---|---|
-| `GROQ_API_KEY` | Yes | Groq API key for AI inference |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk public key |
-| `CLERK_SECRET_KEY` | Yes | Clerk secret key |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Yes | Sign-in redirect path |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Yes | Sign-up redirect path |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Yes | Post sign-in redirect |
-| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Yes | Post sign-up redirect |
-| `DATABASE_URL` | Yes | Neon Postgres connection string |
+| Variable                              | Required | Description                     |
+| ------------------------------------- | -------- | ------------------------------- |
+| `GROQ_API_KEY`                        | Yes      | Groq API key for AI inference   |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`   | Yes      | Clerk public key                |
+| `CLERK_SECRET_KEY`                    | Yes      | Clerk secret key                |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`       | Yes      | Sign-in redirect path           |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL`       | Yes      | Sign-up redirect path           |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` | Yes      | Post sign-in redirect           |
+| `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` | Yes      | Post sign-up redirect           |
+| `DATABASE_URL`                        | Yes      | Neon Postgres connection string |
 
 ---
 
@@ -234,12 +235,12 @@ DATABASE_URL=your_production_url npx prisma db push
 
 ## Free tier limits
 
-| Service | Free limit | Notes |
-|---|---|---|
-| Groq | 14,400 requests/day, 6,000 tokens/min | More than enough for a portfolio project |
-| Clerk | 10,000 monthly active users | Free forever under this limit |
-| Neon | 0.5GB storage, 190 compute hours/month | Enough for thousands of analyses |
-| Vercel | 100GB bandwidth/month | Free for personal projects |
+| Service | Free limit                             | Notes                            |
+| ------- | -------------------------------------- | -------------------------------- |
+| Groq    | 14,400 requests/day, 6,000 tokens/min  | More than enough for a project   |
+| Clerk   | 10,000 monthly active users            | Free forever under this limit    |
+| Neon    | 0.5GB storage, 190 compute hours/month | Enough for thousands of analyses |
+| Vercel  | 100GB bandwidth/month                  | Free for personal projects       |
 
 **Estimated cost at zero traffic: $0/month.**
 
@@ -278,12 +279,6 @@ git push origin feature/your-feature-name
 
 ---
 
-## License
-
-MIT — do whatever you want with it.
-
----
-
 ## Acknowledgements
 
 - [Mozilla Readability](https://github.com/mozilla/readability) — article extraction
@@ -295,4 +290,4 @@ MIT — do whatever you want with it.
 
 ---
 
-*Built by [your name](https://github.com/yourusername)*
+_Built by [Ankush Ananth Bhat](https://github.com/BhatAnkush)_

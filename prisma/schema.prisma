@@ -1,11 +1,11 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
-
 model Analysis {
   id        String   @id @default(cuid())
   url       String?
@@ -13,5 +13,7 @@ model Analysis {
   rawText   String
   result    Json
   createdAt DateTime @default(now())
-}
+  createdBy String?  @map("created_by")
 
+  @@index([createdBy, createdAt])
+}

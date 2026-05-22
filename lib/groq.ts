@@ -1,5 +1,34 @@
 import Groq from "groq-sdk";
 
+function normalizeError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "type" in error &&
+    (error as { type?: unknown }).type === "error"
+  ) {
+    const rawMessage =
+      ("message" in error && typeof (error as { message?: unknown }).message === "string"
+        ? (error as { message: string }).message
+        : undefined) ??
+      ("reason" in error && typeof (error as { reason?: unknown }).reason === "string"
+        ? (error as { reason: string }).reason
+        : undefined);
+
+    const message = rawMessage && rawMessage.trim().length > 0
+      ? rawMessage
+      : "Network request failed";
+
+    return new Error(message);
+  }
+
+  return new Error(String(error));
+}
+
 export function getGroqClient(): Groq {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -27,16 +56,20 @@ export async function callGroq(
 
     return completion.choices[0]?.message?.content ?? "";
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = normalizeError(error).message;
 
     if (message === "groq_key_missing") {
       throw new Error("Groq API key is missing. Set GROQ_API_KEY in your environment.");
     }
 
-    if (message.toLowerCase().includes("errorevent") || message.toLowerCase().includes("fetch")) {
+    if (
+      message.toLowerCase().includes("errorevent") ||
+      message.toLowerCase().includes("fetch") ||
+      message.toLowerCase().includes("network")
+    ) {
       throw new Error("Could not reach Groq API. Check your network, proxy, or firewall settings and try again.");
     }
 
-    throw error;
+    throw normalizeError(error);
   }
 }
