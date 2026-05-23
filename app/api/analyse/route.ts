@@ -350,6 +350,14 @@ async function createAnalysisWithRetry(
 
 export type AnalysisResult = z.infer<typeof AnalysisSchema>;
 
+function startOfUtcDay(now = new Date()): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function isBeforeUtcDay(date: Date, dayStart: Date): boolean {
+  return date.getTime() < dayStart.getTime();
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -361,7 +369,250 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { url, text } = body as { url?: string; text?: string };
+    const { url, text, apiKey, rememberKey } = body as {
+      url?: string;
+      text?: string;
+      apiKey?: string;
+      rememberKey?: boolean;
+    };
+    const userProvidedApiKey = apiKey?.trim() ? apiKey.trim() : undefined;
+    const shouldRememberKey = Boolean(rememberKey);
+    const todayStart = startOfUtcDay();
+    let effectiveApiKey: string | undefined = userProvidedApiKey;
+    let consumeFreeQuotaAfterSuccess = false;
+    let useRawQuotaCompletion = false;
+
+    const hasQuotaTable = async () => {
+      const rows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_name = 'UserQuota'
+        ) AS "exists"
+      `;
+
+      return Boolean(rows[0]?.exists);
+    };
+
+    const userQuotaModel = (prisma as unknown as {
+      userQuota?: {
+        findUnique: (args: unknown) => Promise<
+          | {
+              userId: string;
+              quotaDate: Date;
+              dailyQuotaDone: boolean;
+              storedGroqApiKey: string | null;
+            }
+          | null
+        >;
+        create: (args: unknown) => Promise<unknown>;
+        update: (args: unknown) => Promise<unknown>;
+        updateMany: (args: unknown) => Promise<{ count: number }>;
+      };
+    }).userQuota;
+
+    if (userQuotaModel) {
+      const existingQuota = await userQuotaModel.findUnique({
+        where: { userId },
+      });
+
+      let quotaState: {
+        userId: string;
+        quotaDate: Date;
+        dailyQuotaDone: boolean;
+        storedGroqApiKey: string | null;
+      };
+
+      if (!existingQuota) {
+        await userQuotaModel.create({
+          data: {
+            userId,
+            quotaDate: todayStart,
+            dailyQuotaDone: false,
+            storedGroqApiKey: shouldRememberKey ? userProvidedApiKey ?? null : null,
+          },
+        });
+
+        quotaState = {
+          userId,
+          quotaDate: todayStart,
+          dailyQuotaDone: false,
+          storedGroqApiKey: shouldRememberKey ? userProvidedApiKey ?? null : null,
+        };
+      } else {
+        const needsReset = isBeforeUtcDay(existingQuota.quotaDate, todayStart);
+        const nextData: {
+          quotaDate?: Date;
+          dailyQuotaDone?: boolean;
+          storedGroqApiKey?: string;
+        } = {};
+
+        if (needsReset) {
+          nextData.quotaDate = todayStart;
+          nextData.dailyQuotaDone = false;
+        }
+
+        if (shouldRememberKey && userProvidedApiKey) {
+          nextData.storedGroqApiKey = userProvidedApiKey;
+        }
+
+        if (Object.keys(nextData).length > 0) {
+          await userQuotaModel.update({
+            where: { userId },
+            data: nextData,
+          });
+        }
+
+        quotaState = {
+          userId,
+          quotaDate: needsReset ? todayStart : existingQuota.quotaDate,
+          dailyQuotaDone: needsReset ? false : existingQuota.dailyQuotaDone,
+          storedGroqApiKey:
+            shouldRememberKey && userProvidedApiKey
+              ? userProvidedApiKey
+              : existingQuota.storedGroqApiKey,
+        };
+      }
+
+      // If today's free quota is already consumed, automatically use the saved key.
+      if (!effectiveApiKey && quotaState.dailyQuotaDone) {
+        effectiveApiKey = quotaState.storedGroqApiKey ?? undefined;
+      }
+
+      // If free quota is still available and user did not provide a key, let this run use free quota.
+      if (!effectiveApiKey && !quotaState.dailyQuotaDone) {
+        consumeFreeQuotaAfterSuccess = true;
+      }
+
+      // Daily quota consumed and no usable key available.
+      if (!effectiveApiKey && quotaState.dailyQuotaDone) {
+        return NextResponse.json(
+          {
+            error: "user_api_key_required",
+            message:
+              "Daily free quota is exhausted. Please provide your own Groq API key to continue.",
+          },
+          { status: 402 },
+        );
+      }
+    } else {
+      // Raw SQL fallback path when Prisma client/schema is not yet updated with UserQuota delegate.
+      if (await hasQuotaTable()) {
+        const rows = await prisma.$queryRaw<
+          Array<{
+            quotaDate: Date;
+            dailyQuotaDone: boolean;
+            storedGroqApiKey: string | null;
+          }>
+        >`
+          SELECT
+            "quota_date" AS "quotaDate",
+            "daily_quota_done" AS "dailyQuotaDone",
+            "stored_groq_api_key" AS "storedGroqApiKey"
+          FROM "UserQuota"
+          WHERE "user_id" = ${userId}
+          LIMIT 1
+        `;
+
+        let quotaDate = todayStart;
+        let dailyQuotaDone = false;
+        let storedGroqApiKey: string | null =
+          shouldRememberKey && userProvidedApiKey ? userProvidedApiKey : null;
+
+        if (rows.length === 0) {
+          await prisma.$executeRaw`
+            INSERT INTO "UserQuota" (
+              "user_id",
+              "quota_date",
+              "daily_quota_done",
+              "stored_groq_api_key",
+              "created_at",
+              "updated_at"
+            ) VALUES (
+              ${userId},
+              ${todayStart},
+              false,
+              ${storedGroqApiKey},
+              NOW(),
+              NOW()
+            )
+          `;
+        } else {
+          quotaDate = rows[0].quotaDate;
+          dailyQuotaDone = rows[0].dailyQuotaDone;
+          storedGroqApiKey = rows[0].storedGroqApiKey;
+
+          const needsReset = isBeforeUtcDay(quotaDate, todayStart);
+          if (needsReset) {
+            await prisma.$executeRaw`
+              UPDATE "UserQuota"
+              SET
+                "quota_date" = ${todayStart},
+                "daily_quota_done" = false,
+                "updated_at" = NOW()
+              WHERE "user_id" = ${userId}
+            `;
+            quotaDate = todayStart;
+            dailyQuotaDone = false;
+          }
+
+          if (shouldRememberKey && userProvidedApiKey) {
+            await prisma.$executeRaw`
+              UPDATE "UserQuota"
+              SET
+                "stored_groq_api_key" = ${userProvidedApiKey},
+                "updated_at" = NOW()
+              WHERE "user_id" = ${userId}
+            `;
+            storedGroqApiKey = userProvidedApiKey;
+          }
+        }
+
+        if (!effectiveApiKey && dailyQuotaDone) {
+          effectiveApiKey = storedGroqApiKey ?? undefined;
+        }
+
+        if (!effectiveApiKey && !dailyQuotaDone) {
+          consumeFreeQuotaAfterSuccess = true;
+          useRawQuotaCompletion = true;
+        }
+
+        if (!effectiveApiKey && dailyQuotaDone) {
+          return NextResponse.json(
+            {
+              error: "user_api_key_required",
+              message:
+                "Daily free quota is exhausted. Please provide your own Groq API key to continue.",
+            },
+            { status: 402 },
+          );
+        }
+      } else {
+        // Last-resort fallback when table is absent.
+        if (!effectiveApiKey) {
+          const dailyAnalysisCount = await prisma.analysis.count({
+            where: {
+              createdBy: userId,
+              createdAt: { gte: todayStart },
+            },
+          });
+
+          if (dailyAnalysisCount >= 1) {
+            return NextResponse.json(
+              {
+                error: "user_api_key_required",
+                message:
+                  "Daily free quota is exhausted. Please provide your own Groq API key to continue.",
+              },
+              { status: 402 },
+            );
+          }
+
+          consumeFreeQuotaAfterSuccess = true;
+        }
+      }
+    }
 
     if (!url && !text?.trim()) {
       return NextResponse.json(
@@ -471,11 +722,21 @@ export async function POST(req: NextRequest) {
           try {
             raw = await callGroq(
               ANALYSE_SYSTEM,
-              `Article title: ${title}\n\n${preparedText}`
+              `Article title: ${title}\n\n${preparedText}`,
+              effectiveApiKey,
             );
             pushProgress("ai", "completed", "Received AI response from Groq.");
           } catch (err) {
             const normalized = normalizeError(err);
+            if (normalized.message === "invalid_user_groq_key") {
+              pushError(
+                401,
+                "invalid_user_groq_key",
+                "The provided Groq API key is invalid. Please check it and try again.",
+              );
+              return;
+            }
+
             if (isNetworkLikeError(normalized.message)) {
               pushError(
                 503,
@@ -575,6 +836,30 @@ export async function POST(req: NextRequest) {
           }
 
           pushProgress("db", "completed", `Saved analysis ${analysis.id}.`);
+
+          if (consumeFreeQuotaAfterSuccess && userQuotaModel) {
+            await userQuotaModel.updateMany({
+              where: {
+                userId,
+                quotaDate: todayStart,
+                dailyQuotaDone: false,
+              },
+              data: {
+                dailyQuotaDone: true,
+              },
+            });
+          } else if (consumeFreeQuotaAfterSuccess && useRawQuotaCompletion) {
+            await prisma.$executeRaw`
+              UPDATE "UserQuota"
+              SET
+                "daily_quota_done" = true,
+                "updated_at" = NOW()
+              WHERE "user_id" = ${userId}
+                AND "quota_date" = ${todayStart}
+                AND "daily_quota_done" = false
+            `;
+          }
+
           console.log(`[analyse] [done] analysis saved as ${analysis.id}`);
           send({ type: "result", id: analysis.id, result });
         })()

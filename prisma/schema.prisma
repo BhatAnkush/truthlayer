@@ -17,3 +17,14 @@ model Analysis {
 
   @@index([createdBy, createdAt])
 }
+
+model UserQuota {
+  userId           String   @id @map("user_id")
+  quotaDate        DateTime @map("quota_date")
+  dailyQuotaDone   Boolean  @default(false) @map("daily_quota_done")
+  storedGroqApiKey String?  @map("stored_groq_api_key")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([quotaDate])
+}

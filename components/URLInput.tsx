@@ -7,7 +7,7 @@ import React, {
   useState,
   Suspense,
 } from "react";
-import { FileText, Link2, Search, ScanSearch } from "lucide-react";
+import { FileText, Link2, Save, Search, ScanSearch } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -79,6 +79,13 @@ function URLInputInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState<AnalysisProgressEvent[]>([]);
+  const [groqApiKey, setGroqApiKey] = useState("");
+  const [requiresOwnKey, setRequiresOwnKey] = useState(false);
+  const [rememberKey, setRememberKey] = useState(true);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
+    "idle",
+  );
+  const [saveError, setSaveError] = useState("");
   const didResume = useRef(false);
 
   const redirectToSignIn = useCallback(
@@ -90,7 +97,12 @@ function URLInputInner() {
   );
 
   const analyse = useCallback(
-    async (payload: { url?: string; text?: string }) => {
+    async (payload: {
+      url?: string;
+      text?: string;
+      apiKey?: string;
+      rememberKey?: boolean;
+    }) => {
       setLoading(true);
       setError("");
       setProgress([
@@ -122,6 +134,20 @@ function URLInputInner() {
             redirectToSignIn(payload.url);
             return;
           }
+          if (data.error === "user_api_key_required") {
+            setRequiresOwnKey(true);
+            setError(
+              data.message ?? "Please provide your Groq API key to continue.",
+            );
+            return;
+          }
+
+          if (data.error === "invalid_user_groq_key") {
+            setRequiresOwnKey(true);
+            setError(data.message ?? "Invalid Groq API key.");
+            return;
+          }
+
           if (data.error === "scrape_failed") {
             setMode("text");
             setError(
@@ -226,6 +252,38 @@ function URLInputInner() {
     return `https://${trimmed}`;
   }
 
+  async function handleSaveKey() {
+    const key = groqApiKey.trim();
+    if (!key) {
+      setSaveError("Enter your Groq API key first.");
+      return;
+    }
+
+    setSaveError("");
+    setSaveState("saving");
+    try {
+      const res = await fetch("/api/user-quota", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ apiKey: key }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveError(data.message ?? "Could not save API key.");
+        setSaveState("idle");
+        return;
+      }
+
+      setSaveState("saved");
+    } catch {
+      setSaveError("Network error while saving key.");
+      setSaveState("idle");
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -243,7 +301,11 @@ function URLInputInner() {
         router.push("/sign-in?redirect_url=%2F");
         return;
       }
-      void analyse({ text });
+      void analyse({
+        text,
+        apiKey: groqApiKey.trim() || undefined,
+        rememberKey,
+      });
       return;
     }
 
@@ -262,7 +324,11 @@ function URLInputInner() {
       return;
     }
 
-    void analyse({ url: normalizedUrl });
+    void analyse({
+      url: normalizedUrl,
+      apiKey: groqApiKey.trim() || undefined,
+      rememberKey,
+    });
   }
 
   const isSubmitDisabled =
@@ -348,6 +414,49 @@ function URLInputInner() {
               <ScanSearch size={14} />
               Analyse Text
             </button>
+          </div>
+        )}
+
+        {(requiresOwnKey || groqApiKey.trim().length > 0) && (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-text-secondary">
+              Groq API key
+            </label>
+            <input
+              type="password"
+              value={groqApiKey}
+              onChange={(e) => setGroqApiKey(e.target.value)}
+              placeholder="gsk_..."
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+              autoComplete="off"
+            />
+            <label className="mt-1 inline-flex items-center gap-2 text-xs text-text-secondary">
+              <input
+                type="checkbox"
+                checked={rememberKey}
+                onChange={(e) => setRememberKey(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-border bg-background text-accent"
+              />
+              Save this key for later use
+            </label>
+            <button
+              type="button"
+              onClick={() => void handleSaveKey()}
+              disabled={saveState === "saving" || !groqApiKey.trim()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save size={12} />
+              {saveState === "saving"
+                ? "Saving..."
+                : saveState === "saved"
+                  ? "Saved"
+                  : "Save for later"}
+            </button>
+            <p className="text-xs text-text-tertiary">
+              One free analysis per day is included. After that, your own Groq
+              API key is required.
+            </p>
+            {saveError && <p className="text-xs text-fallacy">{saveError}</p>}
           </div>
         )}
 

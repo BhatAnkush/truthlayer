@@ -38,12 +38,24 @@ export function getGroqClient(): Groq {
   return new Groq({ apiKey, timeout: 30000, maxRetries: 1 });
 }
 
+export function getGroqClientWithKey(apiKey: string): Groq {
+  const normalized = apiKey.trim();
+  if (!normalized) {
+    throw new Error("groq_key_missing");
+  }
+
+  return new Groq({ apiKey: normalized, timeout: 30000, maxRetries: 1 });
+}
+
 export async function callGroq(
   systemPrompt: string,
-  userContent: string
+  userContent: string,
+  overrideApiKey?: string,
 ): Promise<string> {
   try {
-    const groq = getGroqClient();
+    const groq = overrideApiKey
+      ? getGroqClientWithKey(overrideApiKey)
+      : getGroqClient();
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
@@ -68,6 +80,14 @@ export async function callGroq(
       message.toLowerCase().includes("network")
     ) {
       throw new Error("Could not reach Groq API. Check your network, proxy, or firewall settings and try again.");
+    }
+
+    if (
+      message.toLowerCase().includes("unauthorized") ||
+      message.toLowerCase().includes("invalid api key") ||
+      message.toLowerCase().includes("authentication")
+    ) {
+      throw new Error("invalid_user_groq_key");
     }
 
     throw normalizeError(error);
