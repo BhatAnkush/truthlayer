@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -61,7 +61,8 @@ function ProgressPanel({ progress }: { progress: AnalysisProgressEvent[] }) {
   );
 }
 
-export default function URLInput() {
+// Inner component that uses useSearchParams — must be inside Suspense
+function URLInputInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn } = useAuth();
@@ -146,7 +147,6 @@ export default function URLInput() {
             if (event.error === "scrape_failed") {
               setMode("text");
             }
-
             streamError = event.message;
             if (event.detail) {
               streamError = `${event.message} (${event.detail})`;
@@ -173,16 +173,12 @@ export default function URLInput() {
               .map((line) => line.slice(5).trim())
               .join("\n");
 
-            if (!dataLines) {
-              continue;
-            }
+            if (!dataLines) continue;
 
             handleEvent(JSON.parse(dataLines) as AnalysisStreamEvent);
           }
 
-          if (done) {
-            break;
-          }
+          if (done) break;
         }
 
         if (streamError) {
@@ -191,9 +187,7 @@ export default function URLInput() {
         }
 
         if (!nextAnalysisId) {
-          setError(
-            "Analysis finished without a saved result. Please try again.",
-          );
+          setError("Analysis finished without a saved result. Please try again.");
           return;
         }
 
@@ -209,11 +203,7 @@ export default function URLInput() {
 
   useEffect(() => {
     const pendingUrl = searchParams.get("analyze")?.trim();
-
-    if (!pendingUrl || !isLoaded || !isSignedIn || didResume.current) {
-      return;
-    }
-
+    if (!pendingUrl || !isLoaded || !isSignedIn || didResume.current) return;
     didResume.current = true;
     setMode("url");
     setUrl(pendingUrl);
@@ -239,13 +229,11 @@ export default function URLInput() {
     if (mode === "text") {
       const text = pasteText.trim();
       if (!text) return;
-
       if (!isSignedIn) {
         setError("Please sign in to analyse an article.");
         router.push("/sign-in?redirect_url=%2F");
         return;
       }
-
       void analyse({ text });
       return;
     }
@@ -254,7 +242,6 @@ export default function URLInput() {
     if (!normalizedUrl) return;
 
     try {
-      // Validate early so users get feedback instead of silent form rejection.
       new URL(normalizedUrl);
     } catch {
       setError("Please enter a valid article URL.");
@@ -282,10 +269,7 @@ export default function URLInput() {
         <div className="inline-flex rounded-lg border border-gray-700 bg-gray-900 p-1">
           <button
             type="button"
-            onClick={() => {
-              setMode("url");
-              setError("");
-            }}
+            onClick={() => { setMode("url"); setError(""); }}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               mode === "url"
                 ? "bg-gray-100 text-gray-900"
@@ -296,10 +280,7 @@ export default function URLInput() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMode("text");
-              setError("");
-            }}
+            onClick={() => { setMode("text"); setError(""); }}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               mode === "text"
                 ? "bg-gray-100 text-gray-900"
@@ -352,5 +333,14 @@ export default function URLInput() {
 
       {progress.length > 0 && <ProgressPanel progress={progress} />}
     </div>
+  );
+}
+
+// Exported component wraps the inner one in Suspense
+export default function URLInput() {
+  return (
+    <Suspense fallback={null}>
+      <URLInputInner />
+    </Suspense>
   );
 }
