@@ -5,7 +5,7 @@ import { extractArticle } from "@/lib/scraper";
 import { prepareText } from "@/lib/chunker";
 import { callGroq } from "@/lib/groq";
 import { ANALYSE_SYSTEM } from "@/lib/prompts";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/src/lib/db";
 
 export const runtime = "nodejs";
 

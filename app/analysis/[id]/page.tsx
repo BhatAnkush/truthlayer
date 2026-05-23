@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { prisma } from "@/src/lib/db";
 import type { AnalysisResult } from "@/app/api/analyse/route";
 import AnalysisClient from "./AnalysisClient";
 
