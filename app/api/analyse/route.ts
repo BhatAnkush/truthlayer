@@ -237,6 +237,24 @@ function normalizeAnalysisPayload(payload: unknown): unknown {
   };
 }
 
+function titleFromPastedText(input: string): string {
+  const normalized = input
+    .replace(/\s+/g, " ")
+    .replace(/[\r\n]+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "Pasted Article";
+  }
+
+  const words = normalized.split(" ").filter(Boolean);
+  const previewWords = words.slice(0, 8).join(" ");
+  const needsEllipsis = words.length > 8;
+  const preview = `${previewWords}${needsEllipsis ? "..." : ""}`;
+
+  return preview.slice(0, 80);
+}
+
 export type AnalysisPhase =
   | "scrape"
   | "prepare"
@@ -426,10 +444,11 @@ export async function POST(req: NextRequest) {
               throw err;
             }
           } else {
+            title = titleFromPastedText(articleText);
             pushProgress(
               "scrape",
               "completed",
-              `Using pasted article text (${articleText.length} chars).`,
+              `Using pasted article text (${articleText.length} chars). Title: "${title}".`,
             );
           }
 
