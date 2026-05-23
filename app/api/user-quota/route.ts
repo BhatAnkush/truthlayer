@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
+import { encryptStoredKey } from "@/lib/secureKey";
+
+export const runtime = "nodejs";
 
 function startOfUtcDay(now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -31,6 +34,27 @@ export async function POST(req: NextRequest) {
     };
   }).userQuota;
 
+  let encryptedKey = "";
+  try {
+    encryptedKey = encryptStoredKey(apiKey);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message === "encryption_secret_missing") {
+      return NextResponse.json(
+        {
+          error: "encryption_secret_missing",
+          message:
+            "Server encryption secret is missing. Set GROQ_KEY_ENCRYPTION_SECRET.",
+        },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json(
+      { error: "encrypt_failed", message: "Could not encrypt API key." },
+      { status: 500 },
+    );
+  }
+
   const hasQuotaTable = async () => {
     const rows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
       SELECT EXISTS (
@@ -53,10 +77,10 @@ export async function POST(req: NextRequest) {
         userId,
         quotaDate: todayStart,
         dailyQuotaDone: false,
-        storedGroqApiKey: apiKey,
+        storedGroqApiKey: encryptedKey,
       },
       update: {
-        storedGroqApiKey: apiKey,
+        storedGroqApiKey: encryptedKey,
       },
     });
     return NextResponse.json({ ok: true });
@@ -86,7 +110,7 @@ export async function POST(req: NextRequest) {
       ${userId},
       ${todayStart},
       false,
-      ${apiKey},
+      ${encryptedKey},
       NOW(),
       NOW()
     )
@@ -97,4 +121,83 @@ export async function POST(req: NextRequest) {
   `;
 
   return NextResponse.json({ ok: true });
+}
+
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "unauthorized", message: "Please sign in." },
+      { status: 401 },
+    );
+  }
+
+  const todayStart = startOfUtcDay();
+
+  const userQuotaModel = (prisma as unknown as {
+    userQuota?: {
+      findUnique: (args: unknown) => Promise<
+        | {
+            quotaDate: Date;
+            dailyQuotaDone: boolean;
+            storedGroqApiKey: string | null;
+          }
+        | null
+      >;
+    };
+  }).userQuota;
+
+  if (userQuotaModel) {
+    const row = await userQuotaModel.findUnique({ where: { userId } });
+    const exhausted = Boolean(
+      row && row.quotaDate.getTime() >= todayStart.getTime() && row.dailyQuotaDone,
+    );
+
+    return NextResponse.json({
+      remaining: exhausted ? 0 : 1,
+      exhausted,
+      hasSavedKey: Boolean(row?.storedGroqApiKey),
+    });
+  }
+
+  const rows = await prisma.$queryRaw<
+    Array<{
+      quotaDate: Date;
+      dailyQuotaDone: boolean;
+      storedGroqApiKey: string | null;
+    }>
+  >`
+    SELECT
+      "quota_date" AS "quotaDate",
+      "daily_quota_done" AS "dailyQuotaDone",
+      "stored_groq_api_key" AS "storedGroqApiKey"
+    FROM "UserQuota"
+    WHERE "user_id" = ${userId}
+    LIMIT 1
+  `;
+
+  if (rows.length > 0) {
+    const row = rows[0];
+    const exhausted =
+      row.quotaDate.getTime() >= todayStart.getTime() && row.dailyQuotaDone;
+    return NextResponse.json({
+      remaining: exhausted ? 0 : 1,
+      exhausted,
+      hasSavedKey: Boolean(row.storedGroqApiKey),
+    });
+  }
+
+  const todayCount = await prisma.analysis.count({
+    where: {
+      createdBy: userId,
+      createdAt: { gte: todayStart },
+    },
+  });
+
+  const exhausted = todayCount >= 1;
+  return NextResponse.json({
+    remaining: exhausted ? 0 : 1,
+    exhausted,
+    hasSavedKey: false,
+  });
 }

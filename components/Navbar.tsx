@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import { LayoutDashboard } from "lucide-react";
+import QuotaBadge from "@/components/QuotaBadge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Navbar() {
@@ -62,6 +63,7 @@ export default function Navbar() {
               <LayoutDashboard size={13} />
               Dashboard
             </Link>
+            <QuotaBadge />
             <UserButton />
           </Show>
         </div>

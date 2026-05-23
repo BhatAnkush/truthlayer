@@ -6,6 +6,7 @@ import { prepareText } from "@/lib/chunker";
 import { callGroq } from "@/lib/groq";
 import { ANALYSE_SYSTEM } from "@/lib/prompts";
 import { prisma } from "@/lib/db";
+import { decryptStoredKey, encryptStoredKey } from "@/lib/secureKey";
 
 export const runtime = "nodejs";
 
@@ -466,6 +467,20 @@ export async function POST(req: NextRequest) {
     let consumeFreeQuotaAfterSuccess = false;
     let useRawQuotaCompletion = false;
 
+    const encryptIfNeeded = (key: string | undefined) => {
+      if (!key) return undefined;
+      return encryptStoredKey(key);
+    };
+
+    const decryptIfNeeded = (key: string | null | undefined) => {
+      if (!key) return undefined;
+      try {
+        return decryptStoredKey(key) ?? undefined;
+      } catch {
+        return undefined;
+      }
+    };
+
     const hasQuotaTable = async () => {
       const rows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
         SELECT EXISTS (
@@ -509,12 +524,15 @@ export async function POST(req: NextRequest) {
       };
 
       if (!existingQuota) {
+        const encrypted = encryptIfNeeded(
+          shouldRememberKey ? userProvidedApiKey : undefined,
+        );
         await userQuotaModel.create({
           data: {
             userId,
             quotaDate: todayStart,
             dailyQuotaDone: false,
-            storedGroqApiKey: shouldRememberKey ? userProvidedApiKey ?? null : null,
+            storedGroqApiKey: encrypted ?? null,
           },
         });
 
@@ -522,7 +540,7 @@ export async function POST(req: NextRequest) {
           userId,
           quotaDate: todayStart,
           dailyQuotaDone: false,
-          storedGroqApiKey: shouldRememberKey ? userProvidedApiKey ?? null : null,
+          storedGroqApiKey: encrypted ?? null,
         };
       } else {
         const needsReset = isBeforeUtcDay(existingQuota.quotaDate, todayStart);
@@ -538,7 +556,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (shouldRememberKey && userProvidedApiKey) {
-          nextData.storedGroqApiKey = userProvidedApiKey;
+          nextData.storedGroqApiKey = encryptIfNeeded(userProvidedApiKey);
         }
 
         if (Object.keys(nextData).length > 0) {
@@ -552,16 +570,15 @@ export async function POST(req: NextRequest) {
           userId,
           quotaDate: needsReset ? todayStart : existingQuota.quotaDate,
           dailyQuotaDone: needsReset ? false : existingQuota.dailyQuotaDone,
-          storedGroqApiKey:
-            shouldRememberKey && userProvidedApiKey
-              ? userProvidedApiKey
-              : existingQuota.storedGroqApiKey,
+          storedGroqApiKey: shouldRememberKey && userProvidedApiKey
+            ? encryptIfNeeded(userProvidedApiKey) ?? null
+            : existingQuota.storedGroqApiKey,
         };
       }
 
       // If today's free quota is already consumed, automatically use the saved key.
       if (!effectiveApiKey && quotaState.dailyQuotaDone) {
-        effectiveApiKey = quotaState.storedGroqApiKey ?? undefined;
+        effectiveApiKey = decryptIfNeeded(quotaState.storedGroqApiKey);
       }
 
       // If free quota is still available and user did not provide a key, let this run use free quota.
@@ -601,8 +618,9 @@ export async function POST(req: NextRequest) {
 
         let quotaDate = todayStart;
         let dailyQuotaDone = false;
-        let storedGroqApiKey: string | null =
-          shouldRememberKey && userProvidedApiKey ? userProvidedApiKey : null;
+        let storedGroqApiKey: string | null = shouldRememberKey && userProvidedApiKey
+          ? encryptIfNeeded(userProvidedApiKey) ?? null
+          : null;
 
         if (rows.length === 0) {
           await prisma.$executeRaw`
@@ -642,19 +660,20 @@ export async function POST(req: NextRequest) {
           }
 
           if (shouldRememberKey && userProvidedApiKey) {
+            const encrypted = encryptIfNeeded(userProvidedApiKey);
             await prisma.$executeRaw`
               UPDATE "UserQuota"
               SET
-                "stored_groq_api_key" = ${userProvidedApiKey},
+                "stored_groq_api_key" = ${encrypted ?? null},
                 "updated_at" = NOW()
               WHERE "user_id" = ${userId}
             `;
-            storedGroqApiKey = userProvidedApiKey;
+            storedGroqApiKey = encrypted ?? null;
           }
         }
 
         if (!effectiveApiKey && dailyQuotaDone) {
-          effectiveApiKey = storedGroqApiKey ?? undefined;
+          effectiveApiKey = decryptIfNeeded(storedGroqApiKey);
         }
 
         if (!effectiveApiKey && !dailyQuotaDone) {
