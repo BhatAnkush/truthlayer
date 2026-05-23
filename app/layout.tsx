@@ -33,6 +33,28 @@ export const metadata: Metadata = {
   },
   description:
     "AI-powered media analysis with evidence mapping and manipulation scoring.",
+  openGraph: {
+    type: "website",
+    title: "TruthLayer",
+    description:
+      "AI-powered media analysis with evidence mapping and manipulation scoring.",
+    siteName: "TruthLayer",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "TruthLayer social preview",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TruthLayer",
+    description:
+      "AI-powered media analysis with evidence mapping and manipulation scoring.",
+    images: ["/opengraph-image"],
+  },
   icons: {
     icon: [
       {
