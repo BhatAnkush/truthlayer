@@ -24,9 +24,9 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 100;
 
 const EDGE_COLORS: Record<string, string> = {
-  contradicts: "#993C1D",
-  supports: "#0F6E56",
-  depends_on: "#5F5E5A",
+  contradicts: "var(--fallacy)",
+  supports: "var(--fact)",
+  depends_on: "var(--missing)",
 };
 
 interface Connection_ {
@@ -104,10 +104,10 @@ function Board({ claims, connections }: EvidenceBoardProps) {
   );
 
   const TYPE_COLORS: Record<ClaimType, string> = {
-    fact: "#0F6E56",
-    opinion: "#854F0B",
-    fallacy: "#993C1D",
-    missing_context: "#5F5E5A",
+    fact: "var(--fact)",
+    opinion: "var(--opinion)",
+    fallacy: "var(--fallacy)",
+    missing_context: "var(--missing)",
   };
 
   return (
@@ -123,25 +123,29 @@ function Board({ claims, connections }: EvidenceBoardProps) {
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.3}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} color="#374151" />
-        <Controls className="[&_button]:bg-gray-800 [&_button]:border-gray-700 [&_button]:text-gray-300" />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          color="var(--border-subtle)"
+        />
+        <Controls className="[&_button]:border-border [&_button]:bg-surface [&_button]:text-text-secondary" />
         <MiniMap
           nodeColor={(n) =>
             TYPE_COLORS[(n.data as { claim: Claim }).claim?.type] ?? "#5F5E5A"
           }
-          className="bg-gray-900! border-gray-700!"
+          className="border-border! bg-surface!"
         />
       </ReactFlow>
 
       {selectedClaim && (
-        <div className="absolute right-0 top-0 h-full w-80 overflow-y-auto border-l border-gray-800 bg-gray-950 p-5 shadow-2xl">
+        <div className="absolute right-0 top-0 h-full w-80 overflow-y-auto border-l border-border bg-background p-5 shadow-2xl">
           <div className="flex items-start justify-between gap-2 mb-4">
-            <h3 className="text-sm font-semibold text-gray-100">
+            <h3 className="text-sm font-semibold text-text-primary">
               Claim Detail
             </h3>
             <button
               onClick={() => setSelectedClaim(null)}
-              className="text-gray-500 hover:text-gray-300 text-lg leading-none"
+              className="text-lg leading-none text-text-tertiary hover:text-text-primary"
             >
               ×
             </button>
@@ -150,31 +154,32 @@ function Board({ claims, connections }: EvidenceBoardProps) {
             <span
               className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                 {
-                  fact: "bg-teal-100 text-teal-800",
-                  opinion: "bg-amber-100 text-amber-800",
-                  fallacy: "bg-red-100 text-red-800",
-                  missing_context: "bg-stone-100 text-stone-700",
+                  fact: "border border-fact bg-fact-bg text-fact",
+                  opinion: "border border-opinion bg-opinion-bg text-opinion",
+                  fallacy: "border border-fallacy bg-fallacy-bg text-fallacy",
+                  missing_context:
+                    "border border-missing bg-missing-bg text-missing",
                 }[selectedClaim.type]
               }`}
             >
               {selectedClaim.type.replace("_", " ")}
             </span>
-            <p className="text-sm text-gray-200 leading-relaxed">
+            <p className="text-sm leading-relaxed text-text-primary">
               {selectedClaim.text}
             </p>
-            <div className="border-t border-gray-800 pt-3">
-              <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">
+            <div className="border-t border-border-subtle pt-3">
+              <p className="mb-1 text-xs uppercase tracking-wide text-text-tertiary">
                 Reasoning
               </p>
-              <p className="text-sm text-gray-400 leading-relaxed">
+              <p className="text-sm leading-relaxed text-text-secondary">
                 {selectedClaim.reasoning}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
+              <p className="text-xs uppercase tracking-wide text-text-tertiary">
                 Confidence
               </p>
-              <p className="text-sm font-mono text-gray-300">
+              <p className="font-mono text-sm text-accent">
                 {Math.round(selectedClaim.confidence * 100)}%
               </p>
             </div>

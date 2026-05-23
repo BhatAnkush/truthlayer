@@ -16,30 +16,30 @@ export interface Claim {
 
 const TYPE_STYLES: Record<
   ClaimType,
-  { bg: string; border: string; badge: string; label: string }
+  { bg: string; border: string; text: string; label: string }
 > = {
   fact: {
-    bg: "#E1F5EE",
-    border: "#0F6E56",
-    badge: "bg-teal-100 text-teal-800",
+    bg: "var(--fact-bg)",
+    border: "var(--fact)",
+    text: "var(--fact)",
     label: "Fact",
   },
   opinion: {
-    bg: "#FAEEDA",
-    border: "#854F0B",
-    badge: "bg-amber-100 text-amber-800",
+    bg: "var(--opinion-bg)",
+    border: "var(--opinion)",
+    text: "var(--opinion)",
     label: "Opinion",
   },
   fallacy: {
-    bg: "#FAECE7",
-    border: "#993C1D",
-    badge: "bg-red-100 text-red-800",
+    bg: "var(--fallacy-bg)",
+    border: "var(--fallacy)",
+    text: "var(--fallacy)",
     label: "Fallacy",
   },
   missing_context: {
-    bg: "#F1EFE8",
-    border: "#5F5E5A",
-    badge: "bg-stone-100 text-stone-700",
+    bg: "var(--missing-bg)",
+    border: "var(--missing)",
+    text: "var(--missing)",
     label: "Missing Context",
   },
 };
@@ -68,15 +68,20 @@ function ClaimNode({ data }: NodeProps<ClaimNodeData>) {
       >
         <div className="mb-1 flex items-center justify-between gap-2">
           <span
-            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style.badge}`}
+            className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            style={{
+              backgroundColor: style.bg,
+              color: style.text,
+              border: `1px solid ${style.border}`,
+            }}
           >
             {style.label}
           </span>
-          <span className="text-[11px] text-gray-500">
+          <span className="font-mono text-[11px] text-text-tertiary">
             {Math.round(claim.confidence * 100)}%
           </span>
         </div>
-        <p className="text-xs leading-snug text-gray-800 line-clamp-3">
+        <p className="line-clamp-3 text-xs leading-snug text-text-primary">
           {claim.text.length > 100
             ? claim.text.slice(0, 100) + "…"
             : claim.text}

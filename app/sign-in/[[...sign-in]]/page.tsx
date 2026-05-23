@@ -10,16 +10,13 @@ function SignInContent() {
   const redirectUrl = rawRedirect.startsWith("/") ? rawRedirect : "/";
 
   return (
-    <SignIn
-      forceRedirectUrl={redirectUrl}
-      fallbackRedirectUrl={redirectUrl}
-    />
+    <SignIn forceRedirectUrl={redirectUrl} fallbackRedirectUrl={redirectUrl} />
   );
 }
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <Suspense fallback={null}>
         <SignInContent />
       </Suspense>

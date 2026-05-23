@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  Suspense,
+} from "react";
+import { FileText, Link2, Search, ScanSearch } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -9,25 +16,25 @@ import type {
 } from "@/app/api/analyse/route";
 
 const PROGRESS_STYLE: Record<AnalysisProgressEvent["status"], string> = {
-  started: "border-sky-800 bg-sky-950/40 text-sky-200",
-  completed: "border-emerald-800 bg-emerald-950/40 text-emerald-200",
-  retry: "border-amber-800 bg-amber-950/40 text-amber-200",
-  info: "border-gray-700 bg-gray-900 text-gray-300",
+  started: "border-border bg-surface-raised text-text-primary",
+  completed: "border-fact bg-fact-bg text-fact",
+  retry: "border-opinion bg-opinion-bg text-opinion",
+  info: "border-border bg-surface text-text-secondary",
 };
 
 function ProgressPanel({ progress }: { progress: AnalysisProgressEvent[] }) {
   return (
-    <div className="w-full max-w-2xl rounded-2xl border border-gray-800 bg-gray-950/80 p-5 text-left shadow-2xl shadow-black/20">
-      <div className="mb-4 flex items-center justify-between gap-3 border-b border-gray-800 pb-4">
+    <div className="w-full max-w-2xl rounded-2xl border border-border bg-surface p-5 text-left shadow-2xl shadow-black/15">
+      <div className="mb-4 flex items-center justify-between gap-3 border-b border-border-subtle pb-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-text-tertiary">
             Live Analysis Log
           </p>
-          <h2 className="mt-1 text-lg font-semibold text-gray-100">
+          <h2 className="mt-1 text-lg font-semibold text-text-primary">
             Processing article
           </h2>
         </div>
-        <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" />
+        <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-accent" />
       </div>
 
       <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
@@ -40,13 +47,13 @@ function ProgressPanel({ progress }: { progress: AnalysisProgressEvent[] }) {
               <p className="text-sm font-medium capitalize">
                 {event.phase.replace("_", " ")}
               </p>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400">
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-text-tertiary">
                 {event.status}
               </p>
             </div>
             <p className="mt-1 text-sm leading-relaxed">{event.message}</p>
             {event.detail && (
-              <p className="mt-2 text-xs leading-relaxed text-gray-400">
+              <p className="mt-2 text-xs leading-relaxed text-text-secondary">
                 {event.detail}
               </p>
             )}
@@ -54,7 +61,7 @@ function ProgressPanel({ progress }: { progress: AnalysisProgressEvent[] }) {
         ))}
       </div>
 
-      <p className="mt-4 text-sm text-gray-500">
+      <p className="mt-4 text-sm text-text-tertiary">
         Server logs for the same steps are being written to the terminal.
       </p>
     </div>
@@ -187,7 +194,9 @@ function URLInputInner() {
         }
 
         if (!nextAnalysisId) {
-          setError("Analysis finished without a saved result. Please try again.");
+          setError(
+            "Analysis finished without a saved result. Please try again.",
+          );
           return;
         }
 
@@ -266,28 +275,40 @@ function URLInputInner() {
   return (
     <div className="w-full max-w-2xl space-y-3">
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="inline-flex rounded-lg border border-gray-700 bg-gray-900 p-1">
+        <div className="inline-flex rounded-lg border border-border bg-background-subtle p-1">
           <button
             type="button"
-            onClick={() => { setMode("url"); setError(""); }}
+            onClick={() => {
+              setMode("url");
+              setError("");
+            }}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               mode === "url"
-                ? "bg-gray-100 text-gray-900"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-surface text-text-primary"
+                : "text-text-tertiary hover:text-text-primary"
             }`}
           >
-            URL
+            <span className="inline-flex items-center gap-1.5">
+              <Link2 size={12} />
+              URL
+            </span>
           </button>
           <button
             type="button"
-            onClick={() => { setMode("text"); setError(""); }}
+            onClick={() => {
+              setMode("text");
+              setError("");
+            }}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               mode === "text"
-                ? "bg-gray-100 text-gray-900"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-surface text-text-primary"
+                : "text-text-tertiary hover:text-text-primary"
             }`}
           >
-            Text
+            <span className="inline-flex items-center gap-1.5">
+              <FileText size={12} />
+              Text
+            </span>
           </button>
         </div>
 
@@ -298,14 +319,15 @@ function URLInputInner() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/article"
-              className="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-sm text-gray-100 placeholder-gray-500 outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500"
+              className="flex-1 rounded-lg border border-border bg-background px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
               required
             />
             <button
               type="submit"
-              className="rounded-lg bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-white disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-accent-bright disabled:opacity-50"
               disabled={isSubmitDisabled}
             >
+              <Search size={14} />
               Analyse URL
             </button>
           </div>
@@ -316,19 +338,20 @@ function URLInputInner() {
               onChange={(e) => setPasteText(e.target.value)}
               placeholder="Paste the article text here..."
               rows={8}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-sm text-gray-100 placeholder-gray-500 outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500 resize-none"
+              className="w-full resize-none rounded-lg border border-border bg-background px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             />
             <button
               type="submit"
-              className="w-full rounded-lg bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-900 transition-colors hover:bg-white disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-accent-bright disabled:opacity-50"
               disabled={isSubmitDisabled}
             >
+              <ScanSearch size={14} />
               Analyse Text
             </button>
           </div>
         )}
 
-        {error && <p className="text-sm text-amber-400">{error}</p>}
+        {error && <p className="text-sm text-fallacy">{error}</p>}
       </form>
 
       {progress.length > 0 && <ProgressPanel progress={progress} />}

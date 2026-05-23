@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { BorderBeam } from "@/components/magicui/border-beam";
 
 export type BiasType = "left" | "right" | "centre" | "unclear";
 
@@ -27,16 +28,16 @@ const DIMENSIONS: Array<{ key: keyof ManipulationScoreData; label: string }> = [
 ];
 
 const BIAS_STYLES: Record<BiasType, string> = {
-  left: "bg-blue-900 text-blue-200 border border-blue-700",
-  right: "bg-red-900 text-red-200 border border-red-700",
-  centre: "bg-gray-700 text-gray-200 border border-gray-600",
-  unclear: "bg-gray-800 text-gray-300 border border-gray-600",
+  left: "border-fact bg-fact-bg text-fact",
+  right: "border-fallacy bg-fallacy-bg text-fallacy",
+  centre: "border-opinion bg-opinion-bg text-opinion",
+  unclear: "border-missing bg-missing-bg text-missing",
 };
 
 function barColor(value: number): string {
-  if (value <= 3) return "bg-emerald-500";
-  if (value <= 6) return "bg-amber-500";
-  return "bg-red-500";
+  if (value <= 3) return "bg-fact";
+  if (value <= 6) return "bg-opinion";
+  return "bg-fallacy";
 }
 
 export default function ManipulationScore({
@@ -44,44 +45,66 @@ export default function ManipulationScore({
   overall_bias,
   summary,
 }: ManipulationScoreProps) {
+  const average =
+    (score.fear_language +
+      score.urgency_bait +
+      score.false_equivalence +
+      score.missing_sources +
+      score.emotional_appeals) /
+    5;
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
-          Bias
-        </span>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${BIAS_STYLES[overall_bias]}`}
-        >
-          {overall_bias}
-        </span>
-      </div>
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-surface p-4">
+      <BorderBeam
+        size={250}
+        duration={10}
+        colorFrom="var(--accent)"
+        colorTo="transparent"
+      />
 
-      <div className="flex flex-col gap-3">
-        {DIMENSIONS.map(({ key, label }) => {
-          const value = score[key];
-          return (
-            <div key={key} className="flex items-center gap-3">
-              <span className="w-36 shrink-0 text-xs text-gray-400">
-                {label}
-              </span>
-              <div className="flex-1 rounded-full bg-gray-800 h-2 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${barColor(value)}`}
-                  style={{ width: `${value * 10}%` }}
-                />
+      <div className="relative z-10 flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold uppercase tracking-wide text-text-secondary">
+              Bias
+            </span>
+            <span
+              className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${BIAS_STYLES[overall_bias]}`}
+            >
+              {overall_bias}
+            </span>
+          </div>
+          <span className="font-mono text-2xl font-medium text-accent">
+            {average.toFixed(1)}/10
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {DIMENSIONS.map(({ key, label }) => {
+            const value = score[key];
+            return (
+              <div key={key} className="flex items-center gap-3">
+                <span className="w-36 shrink-0 text-xs text-text-secondary">
+                  {label}
+                </span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-background-subtle">
+                  <div
+                    className={`h-full rounded-full transition-all ${barColor(value)}`}
+                    style={{ width: `${value * 10}%` }}
+                  />
+                </div>
+                <span className="w-12 text-right font-mono text-xs text-text-secondary">
+                  {value}/10
+                </span>
               </div>
-              <span className="w-8 text-right text-xs font-mono text-gray-400">
-                {value}/10
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <p className="text-sm italic text-gray-400 border-t border-gray-800 pt-3">
-        {summary}
-      </p>
+        <p className="border-t border-border-subtle pt-3 text-sm italic text-text-secondary">
+          {summary}
+        </p>
+      </div>
     </div>
   );
 }

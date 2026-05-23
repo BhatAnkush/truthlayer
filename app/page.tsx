@@ -1,63 +1,75 @@
+import type { Metadata } from "next";
+import { BarChart3, FileSearch2, GitCompareArrows, Map } from "lucide-react";
 import URLInput from "@/components/URLInput";
-import { BarChart3, Link2, Map } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { BorderBeam } from "@/components/magicui/border-beam";
+
+export const metadata: Metadata = {
+  title: "Home",
+  description: "Analyze news URLs with claim mapping and manipulation scoring.",
+};
+
+const features = [
+  {
+    label: "Evidence Board",
+    desc: "Claims visualised as an interactive node graph",
+    icon: Map,
+  },
+  {
+    label: "Manipulation Score",
+    desc: "5-dimension bias and manipulation rating",
+    icon: BarChart3,
+  },
+  {
+    label: "Source Compare",
+    desc: "Find contradictions between two outlets",
+    icon: GitCompareArrows,
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-gray-950 text-gray-100">
-      {/* Hero */}
-      <main className="flex flex-1 flex-col items-center justify-center px-4 py-24 text-center">
-        <div className="mb-3 inline-flex items-center rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs text-gray-400">
-          Powered by Groq · Llama 3.3 70B
-        </div>
-        <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-white sm:text-5xl">
-          See what the article is really saying
-        </h1>
-        <p className="mb-10 max-w-xl text-base text-gray-400">
-          TruthLayer uses AI to dissect any news article — separating facts from
-          opinions, spotting logical fallacies, and measuring manipulation.
-        </p>
+    <main className="flex min-h-[calc(100vh-57px)] flex-col items-center justify-center px-4 py-20">
+      <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent-subtle bg-accent-subtle px-4 py-1.5">
+        <FileSearch2 size={14} className="text-accent" />
+        <span className="font-mono text-xs font-medium uppercase tracking-widest text-accent-dim">
+          AI Media Analysis
+        </span>
+      </div>
+
+      <h1 className="mb-6 max-w-3xl text-center font-display text-5xl font-bold leading-[1.05] tracking-tight text-text-primary sm:text-6xl md:text-7xl">
+        See what the article is{" "}
+        <span className="italic text-accent">really</span> saying.
+      </h1>
+
+      <p className="mb-12 max-w-xl text-center font-sans text-lg font-light leading-relaxed text-text-secondary">
+        Paste any news URL. TruthLayer separates facts from opinions, spots
+        logical fallacies, and scores manipulation through an interactive
+        evidence board.
+      </p>
+
+      <div className="relative w-full max-w-2xl rounded-2xl border border-border bg-surface p-6 shadow-xl shadow-black/10">
+        <BorderBeam
+          size={300}
+          duration={12}
+          colorFrom="var(--accent)"
+          colorTo="transparent"
+        />
         <URLInput />
-      </main>
+      </div>
 
-      {/* Features */}
-      <section className="border-t border-gray-800 px-4 py-20">
-        <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-3">
-          <FeatureCard
-            title="Evidence Board"
-            description="Every claim laid out as an interactive graph. See how arguments connect, contradict, and depend on each other."
-            icon={Map}
-          />
-          <FeatureCard
-            title="Manipulation Score"
-            description="Five dimensions — fear language, urgency bait, false equivalence, missing sources, and emotional appeals."
-            icon={BarChart3}
-          />
-          <FeatureCard
-            title="Shareable Analysis"
-            description="Every analysis gets a permanent public URL. Share with anyone — no account needed."
-            icon={Link2}
-          />
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function FeatureCard({
-  title,
-  description,
-  icon: Icon,
-}: {
-  title: string;
-  description: string;
-  icon: LucideIcon;
-}) {
-  return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
-      <Icon className="mb-3 h-6 w-6 text-gray-300" />
-      <h3 className="mb-2 text-sm font-semibold text-gray-100">{title}</h3>
-      <p className="text-sm leading-relaxed text-gray-500">{description}</p>
-    </div>
+      <div className="mt-16 grid w-full max-w-2xl grid-cols-1 gap-8 sm:grid-cols-3">
+        {features.map((feature) => (
+          <div key={feature.label} className="text-center">
+            <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-accent">
+              <feature.icon size={14} />
+              {feature.label}
+            </div>
+            <p className="text-xs leading-relaxed text-text-tertiary">
+              {feature.desc}
+            </p>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }

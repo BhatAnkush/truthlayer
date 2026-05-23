@@ -2,8 +2,17 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import {
+  ArrowLeft,
+  Link2,
+  Share2,
+  Check,
+  ShieldAlert,
+  Workflow,
+} from "lucide-react";
 import EvidenceBoard from "@/components/EvidenceBoard";
 import ManipulationScore from "@/components/ManipulationScore";
+import { BorderBeam } from "@/components/magicui/border-beam";
 import type { AnalysisResult } from "@/app/api/analyse/route";
 
 interface Props {
@@ -27,14 +36,23 @@ export default function AnalysisClient({ id, title, url, result }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-950 text-gray-100">
-      {/* Top bar */}
-      <header className="flex items-center justify-between gap-4 border-b border-gray-800 px-4 py-3 sm:px-6">
+    <div className="flex min-h-screen flex-col bg-background text-text-primary">
+      <header className="relative flex items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-6">
+        <BorderBeam
+          size={280}
+          duration={10}
+          colorFrom="var(--accent)"
+          colorTo="transparent"
+        />
         <div className="flex min-w-0 flex-col gap-0.5">
-          <Link href="/" className="text-xs text-gray-500 hover:text-gray-300">
-            ← TruthLayer
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary"
+          >
+            <ArrowLeft size={12} />
+            TruthLayer
           </Link>
-          <h1 className="truncate text-sm font-semibold text-gray-100">
+          <h1 className="truncate text-sm font-semibold text-text-primary">
             {title}
           </h1>
           {url && (
@@ -42,34 +60,35 @@ export default function AnalysisClient({ id, title, url, result }: Props) {
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="truncate text-xs text-gray-500 hover:text-gray-300 underline"
+              className="inline-flex items-center gap-1 truncate font-mono text-xs text-accent-dim underline hover:text-accent"
             >
+              <Link2 size={12} />
               {url}
             </a>
           )}
         </div>
         <button
           onClick={handleShare}
-          className="shrink-0 rounded-lg border border-gray-700 px-4 py-2 text-xs font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-gray-100"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
         >
+          {copied ? <Check size={14} /> : <Share2 size={14} />}
           {copied ? "Copied!" : "Share"}
         </button>
       </header>
 
       {/* Main layout */}
-      <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
-        {/* Evidence Board — 60% */}
-        <div className="h-[60vh] md:h-auto md:flex-3 border-b border-gray-800 md:border-b-0 md:border-r md:border-gray-800">
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+        <div className="h-[60vh] border-b border-border md:h-auto md:flex-3 md:border-b-0 md:border-r md:border-border">
           <EvidenceBoard
             claims={result.claims}
             connections={result.connections}
           />
         </div>
 
-        {/* Score panel — 40% */}
         <div className="flex flex-col gap-6 overflow-y-auto p-5 md:flex-2">
           <div>
-            <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-gray-500">
+            <h2 className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-text-tertiary">
+              <ShieldAlert size={13} />
               Manipulation Score
             </h2>
             <ManipulationScore
@@ -79,34 +98,38 @@ export default function AnalysisClient({ id, title, url, result }: Props) {
             />
           </div>
 
-          <div className="border-t border-gray-800 pt-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
+          <div className="border-t border-border-subtle pt-5">
+            <h2 className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-text-tertiary">
+              <Workflow size={13} />
               Claims ({result.claims.length})
             </h2>
             <div className="space-y-2">
               {result.claims.map((claim) => (
                 <div
                   key={claim.id}
-                  className="rounded-lg border border-gray-800 bg-gray-900 p-3"
+                  className="rounded-lg border border-border bg-surface p-3"
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                         {
-                          fact: "bg-teal-900 text-teal-300",
-                          opinion: "bg-amber-900 text-amber-300",
-                          fallacy: "bg-red-900 text-red-300",
-                          missing_context: "bg-stone-800 text-stone-300",
+                          fact: "border border-fact bg-fact-bg text-fact",
+                          opinion:
+                            "border border-opinion bg-opinion-bg text-opinion",
+                          fallacy:
+                            "border border-fallacy bg-fallacy-bg text-fallacy",
+                          missing_context:
+                            "border border-missing bg-missing-bg text-missing",
                         }[claim.type]
                       }`}
                     >
                       {claim.type.replace("_", " ")}
                     </span>
-                    <span className="text-[11px] text-gray-600">
+                    <span className="font-mono text-[11px] text-text-tertiary">
                       {Math.round(claim.confidence * 100)}%
                     </span>
                   </div>
-                  <p className="text-xs leading-relaxed text-gray-300">
+                  <p className="text-xs leading-relaxed text-text-secondary">
                     {claim.text}
                   </p>
                 </div>
