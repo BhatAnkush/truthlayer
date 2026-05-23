@@ -375,6 +375,90 @@ export async function POST(req: NextRequest) {
       apiKey?: string;
       rememberKey?: boolean;
     };
+
+    if (!url && !text?.trim()) {
+      return NextResponse.json(
+        { error: "no_content", message: "No article content provided." },
+        { status: 400 }
+      );
+    }
+
+    // Cross-user URL cache reuse: if same URL already exists, clone to this user and return immediately.
+    if (url) {
+      const cached = await prisma.analysis.findFirst({
+        where: { url },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (cached) {
+        let resolved: typeof cached | null = cached;
+
+        if (cached.createdBy !== userId) {
+          try {
+            resolved = await createAnalysisWithRetry({
+              createdBy: userId,
+              url: cached.url,
+              title: cached.title,
+              rawText: cached.rawText,
+              result: cached.result as object,
+            });
+          } catch (err) {
+            console.warn(
+              "[analyse] cache clone failed; continuing with full analysis",
+              err,
+            );
+            resolved = null;
+          }
+        }
+
+        if (resolved) {
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(controller) {
+              const send = (event: AnalysisStreamEvent) => {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+              };
+
+              send({
+                type: "progress",
+                phase: "scrape",
+                status: "completed",
+                message: "Matched existing analysis for this URL.",
+                timestamp: new Date().toISOString(),
+              });
+
+              send({
+                type: "progress",
+                phase: "db",
+                status: "completed",
+                message:
+                  cached.createdBy === userId
+                    ? "Loaded your cached result."
+                    : "Reused cached result and linked it to your account.",
+                timestamp: new Date().toISOString(),
+              });
+
+              send({
+                type: "result",
+                id: resolved.id,
+                result: resolved.result as AnalysisResult,
+              });
+
+              controller.close();
+            },
+          });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream; charset=utf-8",
+              "Cache-Control": "no-cache, no-transform",
+              Connection: "keep-alive",
+            },
+          });
+        }
+      }
+    }
+
     const userProvidedApiKey = apiKey?.trim() ? apiKey.trim() : undefined;
     const shouldRememberKey = Boolean(rememberKey);
     const todayStart = startOfUtcDay();
@@ -612,13 +696,6 @@ export async function POST(req: NextRequest) {
           consumeFreeQuotaAfterSuccess = true;
         }
       }
-    }
-
-    if (!url && !text?.trim()) {
-      return NextResponse.json(
-        { error: "no_content", message: "No article content provided." },
-        { status: 400 }
-      );
     }
 
     const encoder = new TextEncoder();

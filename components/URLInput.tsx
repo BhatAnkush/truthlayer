@@ -7,10 +7,24 @@ import React, {
   useState,
   Suspense,
 } from "react";
-import { FileText, Link2, Save, Search, ScanSearch } from "lucide-react";
+import {
+  AlertCircle,
+  Brain,
+  CheckCircle2,
+  CircleDashed,
+  Database,
+  FileCheck,
+  FileText,
+  Link2,
+  Save,
+  ScanSearch,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
+  AnalysisPhase,
   AnalysisProgressEvent,
   AnalysisStreamEvent,
 } from "@/app/api/analyse/route";
@@ -22,13 +36,55 @@ const PROGRESS_STYLE: Record<AnalysisProgressEvent["status"], string> = {
   info: "border-border bg-surface text-text-secondary",
 };
 
+const STEP_ORDER: AnalysisPhase[] = [
+  "scrape",
+  "prepare",
+  "ai",
+  "parse",
+  "validate",
+  "db",
+];
+
+const STEP_META: Record<
+  AnalysisPhase,
+  {
+    label: string;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+  }
+> = {
+  scrape: { label: "Fetch Article", icon: Link2 },
+  prepare: { label: "Prepare", icon: FileText },
+  ai: { label: "AI Analysis", icon: Brain },
+  parse: { label: "Parse", icon: FileCheck },
+  validate: { label: "Validate", icon: Sparkles },
+  db: { label: "Save", icon: Database },
+};
+
 function ProgressPanel({ progress }: { progress: AnalysisProgressEvent[] }) {
+  const latestByPhase = progress.reduce(
+    (acc, event) => {
+      acc[event.phase] = event;
+      return acc;
+    },
+    {} as Partial<Record<AnalysisPhase, AnalysisProgressEvent>>,
+  );
+
+  const visiblePhases = STEP_ORDER.filter((phase) =>
+    Boolean(latestByPhase[phase]),
+  );
+
+  const displayStatus = (status: AnalysisProgressEvent["status"]) => {
+    if (status === "completed") return "complete";
+    if (status === "retry") return "retry";
+    return "pending";
+  };
+
   return (
     <div className="w-full max-w-2xl rounded-2xl border border-border bg-surface p-5 text-left shadow-2xl shadow-black/15">
       <div className="mb-4 flex items-center justify-between gap-3 border-b border-border-subtle pb-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-text-tertiary">
-            Live Analysis Log
+            Analysis Steps
           </p>
           <h2 className="mt-1 text-lg font-semibold text-text-primary">
             Processing article
@@ -37,32 +93,40 @@ function ProgressPanel({ progress }: { progress: AnalysisProgressEvent[] }) {
         <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-accent" />
       </div>
 
-      <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
-        {progress.map((event, index) => (
-          <div
-            key={`${event.timestamp}-${event.phase}-${index}`}
-            className={`rounded-xl border px-4 py-3 ${PROGRESS_STYLE[event.status]}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium capitalize">
-                {event.phase.replace("_", " ")}
-              </p>
-              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-text-tertiary">
-                {event.status}
-              </p>
+      <div className="space-y-2">
+        {visiblePhases.map((phase) => {
+          const event = latestByPhase[phase];
+          const status = event?.status ?? "info";
+          const { icon: Icon, label } = STEP_META[phase];
+
+          return (
+            <div
+              key={phase}
+              className={`flex items-center justify-between rounded-xl border px-4 py-2.5 ${PROGRESS_STYLE[status]}`}
+            >
+              <div className="inline-flex items-center gap-2">
+                <Icon size={15} />
+                <span className="text-sm font-medium">{label}</span>
+              </div>
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
+                {status === "completed" ? (
+                  <CheckCircle2 size={12} className="text-fact" />
+                ) : status === "retry" ? (
+                  <AlertCircle size={12} className="text-opinion" />
+                ) : status === "started" || status === "info" ? (
+                  <CircleDashed size={12} className="animate-spin" />
+                ) : (
+                  <CircleDashed size={12} />
+                )}
+                {displayStatus(status)}
+              </span>
             </div>
-            <p className="mt-1 text-sm leading-relaxed">{event.message}</p>
-            {event.detail && (
-              <p className="mt-2 text-xs leading-relaxed text-text-secondary">
-                {event.detail}
-              </p>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <p className="mt-4 text-sm text-text-tertiary">
-        Server logs for the same steps are being written to the terminal.
+        Running step-by-step analysis.
       </p>
     </div>
   );
@@ -86,6 +150,12 @@ function URLInputInner() {
     "idle",
   );
   const [saveError, setSaveError] = useState("");
+  const pendingPayloadRef = useRef<{
+    url?: string;
+    text?: string;
+    apiKey?: string;
+    rememberKey?: boolean;
+  } | null>(null);
   const didResume = useRef(false);
 
   const redirectToSignIn = useCallback(
@@ -105,6 +175,7 @@ function URLInputInner() {
     }) => {
       setLoading(true);
       setError("");
+      pendingPayloadRef.current = payload;
       setProgress([
         {
           type: "progress",
@@ -227,6 +298,7 @@ function URLInputInner() {
         }
 
         router.push(`/analysis/${nextAnalysisId}`);
+        pendingPayloadRef.current = null;
       } catch {
         setError("Network error. Please check your connection and try again.");
       } finally {
@@ -278,6 +350,17 @@ function URLInputInner() {
       }
 
       setSaveState("saved");
+
+      if (pendingPayloadRef.current) {
+        const nextPayload = {
+          ...pendingPayloadRef.current,
+          apiKey: key,
+          rememberKey: true,
+        };
+        setRequiresOwnKey(false);
+        setError("");
+        void analyse(nextPayload);
+      }
     } catch {
       setSaveError("Network error while saving key.");
       setSaveState("idle");
