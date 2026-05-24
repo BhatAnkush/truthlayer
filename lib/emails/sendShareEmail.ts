@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { buildShareEmail } from "@/lib/emails/buildShareEmail";
 
 type SendShareEmailProps = {
@@ -33,12 +33,19 @@ function greetingName(name: string): string {
 }
 
 export async function sendShareEmail(props: SendShareEmailProps): Promise<void> {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  if (!resendApiKey) {
-    throw new Error("resend_key_missing");
+  const smtpUser = process.env.GMAIL_USER;
+  const smtpPass = process.env.GMAIL_APP_PASSWORD;
+  if (!smtpUser || !smtpPass) {
+    throw new Error("smtp_credentials_missing");
   }
 
-  const resend = new Resend(resendApiKey);
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
 
   const html = buildShareEmail({
     sharerName: props.sharerName,
@@ -55,8 +62,8 @@ export async function sendShareEmail(props: SendShareEmailProps): Promise<void> 
 
   const text = `${greetingName(props.recipientName)}, ${props.sharerName} shared a TruthLayer analysis with you: ${props.analysisUrl}`;
 
-  await resend.emails.send({
-    from: "TruthLayer <ankushbhataab@gmail.com>",
+  await transporter.sendMail({
+    from: `TruthLayer <${smtpUser}>`,
     to: props.recipientEmail,
     subject: buildSubject(props.articleTitle),
     html,

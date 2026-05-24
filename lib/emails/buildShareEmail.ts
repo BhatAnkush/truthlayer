@@ -33,6 +33,7 @@ export function buildShareEmail(props: ShareEmailProps): string {
     fearScore >= 7 ? "#B03A2A" : fearScore >= 4 ? "#B07A1A" : "#2A7A5A";
   const manipFillClass =
     manipulationScore >= 7 ? "#B03A2A" : manipulationScore >= 4 ? "#B07A1A" : "#2A7A5A";
+  const currentYear = new Date().getFullYear();
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -148,7 +149,7 @@ export function buildShareEmail(props: ShareEmailProps): string {
   <!-- Below card -->
   <div style="text-align:center;padding-top:20px;">
     <p style="font-size:12px;color:#A8ABA2;margin:0;">
-      © 2026 TruthLayer &nbsp;·&nbsp;
+      © ${currentYear} TruthLayer &nbsp;·&nbsp;
       <a href="${appUrl}" style="color:#A8ABA2;text-decoration:underline;">Visit TruthLayer</a>
     </p>
   </div>

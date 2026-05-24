@@ -56,6 +56,7 @@ export default function ShareModal({
   );
   const [users, setUsers] = useState<ShareUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const [usersError, setUsersError] = useState("");
   const [query, setQuery] = useState("");
   const [togglingPublic, setTogglingPublic] = useState(false);
@@ -91,41 +92,56 @@ export default function ShareModal({
   }, [sharedWith, users]);
 
   useEffect(() => {
-    if (!open || users.length > 0 || loadingUsers) {
+    if (!open || usersLoaded) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
+
     const loadUsers = async () => {
       setLoadingUsers(true);
       setUsersError("");
+
       try {
-        const response = await fetch("/api/users", { method: "GET" });
+        const response = await fetch("/api/users", {
+          method: "GET",
+          credentials: "same-origin",
+          signal: controller.signal,
+        });
+
         if (!response.ok) {
           throw new Error("Could not load users. Try again.");
         }
 
-        const data = (await response.json()) as ShareUser[];
-        if (!cancelled) {
-          setUsers(data);
+        const payload = (await response.json()) as
+          | ShareUser[]
+          | { data?: ShareUser[] };
+
+        const data = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+
+        setUsers(data);
+        setUsersLoaded(true);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
         }
-      } catch {
-        if (!cancelled) {
-          setUsersError("Could not load users. Try again.");
-        }
+
+        setUsersError("Could not load users. Try again.");
       } finally {
-        if (!cancelled) {
-          setLoadingUsers(false);
-        }
+        setLoadingUsers(false);
       }
     };
 
     void loadUsers();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [open, users.length, loadingUsers]);
+  }, [open, usersLoaded]);
 
   async function togglePublic() {
     const previous = isPublicState;
