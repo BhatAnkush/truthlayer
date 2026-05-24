@@ -5,13 +5,8 @@ type SendShareEmailProps = {
   recipientEmail: string;
   recipientName: string;
   sharerName: string;
+  sharerImageUrl?: string;
   articleTitle: string;
-  factCount: number;
-  opinionCount: number;
-  fallacyCount: number;
-  missingCount: number;
-  manipulationScore: number;
-  fearScore: number;
   analysisUrl: string;
   appUrl: string;
 };
@@ -32,7 +27,9 @@ function greetingName(name: string): string {
   return trimmed;
 }
 
-export async function sendShareEmail(props: SendShareEmailProps): Promise<void> {
+export async function sendShareEmail(
+  props: SendShareEmailProps,
+): Promise<void> {
   const smtpUser = process.env.GMAIL_USER;
   const smtpPass = process.env.GMAIL_APP_PASSWORD;
   if (!smtpUser || !smtpPass) {
@@ -49,13 +46,8 @@ export async function sendShareEmail(props: SendShareEmailProps): Promise<void> 
 
   const html = buildShareEmail({
     sharerName: props.sharerName,
+    sharerImageUrl: props.sharerImageUrl,
     articleTitle: props.articleTitle,
-    factCount: props.factCount,
-    opinionCount: props.opinionCount,
-    fallacyCount: props.fallacyCount,
-    missingCount: props.missingCount,
-    manipulationScore: props.manipulationScore,
-    fearScore: props.fearScore,
     analysisUrl: props.analysisUrl,
     appUrl: props.appUrl,
   });

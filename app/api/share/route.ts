@@ -17,24 +17,6 @@ type DeleteShareRequestBody = {
   sharedWithUserId?: string;
 };
 
-type AnalysisResultShape = {
-  claims?: Array<{ type?: string }>;
-  manipulation_score?: { fear_language?: number };
-};
-
-function normalizeAnalysisResult(input: unknown): AnalysisResultShape {
-  if (!input || typeof input !== "object") {
-    return {};
-  }
-
-  return input as AnalysisResultShape;
-}
-
-function safeNumber(input: unknown): number {
-  const value = Number(input);
-  return Number.isFinite(value) ? value : 0;
-}
-
 function fullName(firstName: string | null, lastName: string | null): string {
   const value = `${firstName ?? ""} ${lastName ?? ""}`.trim();
   return value || "Someone";
@@ -74,7 +56,6 @@ export async function POST(req: NextRequest) {
     select: {
       id: true,
       title: true,
-      result: true,
     },
   });
 
@@ -104,7 +85,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, isPublic: updated.isPublic });
   }
 
-  const sharedWith = typeof body.sharedWithUserId === "string" ? body.sharedWithUserId : "";
+  const sharedWith =
+    typeof body.sharedWithUserId === "string" ? body.sharedWithUserId : "";
   if (!sharedWith) {
     return NextResponse.json(
       { message: "Please choose a user to share with." },
@@ -125,25 +107,11 @@ export async function POST(req: NextRequest) {
     let emailSent = false;
 
     if (wasInserted) {
-      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://truthlayer-eight-dusky.vercel.app").replace(/\/$/, "");
+      const appUrl = (
+        process.env.NEXT_PUBLIC_APP_URL ||
+        "https://truthlayer-eight-dusky.vercel.app"
+      ).replace(/\/$/, "");
       const analysisUrl = `${appUrl}/analysis/${analysis.id}`;
-      const result = normalizeAnalysisResult(analysis.result);
-      const claims = Array.isArray(result.claims) ? result.claims : [];
-
-      const factCount = claims.filter((claim) => claim.type === "fact").length;
-      const opinionCount = claims.filter((claim) => claim.type === "opinion").length;
-      const fallacyCount = claims.filter((claim) => claim.type === "fallacy").length;
-      const missingCount = claims.filter((claim) => claim.type === "missing_context").length;
-
-      const scoreParts = [
-        safeNumber((result as { manipulation_score?: { fear_language?: number; urgency_bait?: number; false_equivalence?: number; missing_sources?: number; emotional_appeals?: number } }).manipulation_score?.fear_language),
-        safeNumber((result as { manipulation_score?: { fear_language?: number; urgency_bait?: number; false_equivalence?: number; missing_sources?: number; emotional_appeals?: number } }).manipulation_score?.urgency_bait),
-        safeNumber((result as { manipulation_score?: { fear_language?: number; urgency_bait?: number; false_equivalence?: number; missing_sources?: number; emotional_appeals?: number } }).manipulation_score?.false_equivalence),
-        safeNumber((result as { manipulation_score?: { fear_language?: number; urgency_bait?: number; false_equivalence?: number; missing_sources?: number; emotional_appeals?: number } }).manipulation_score?.missing_sources),
-        safeNumber((result as { manipulation_score?: { fear_language?: number; urgency_bait?: number; false_equivalence?: number; missing_sources?: number; emotional_appeals?: number } }).manipulation_score?.emotional_appeals),
-      ];
-      const manipulationScore = Math.round((scoreParts.reduce((acc, value) => acc + value, 0) / scoreParts.length) * 10) / 10;
-      const fearScore = safeNumber(result.manipulation_score?.fear_language);
 
       try {
         const client = await clerkClient();
@@ -158,13 +126,8 @@ export async function POST(req: NextRequest) {
             recipientEmail,
             recipientName: fullName(recipient.firstName, recipient.lastName),
             sharerName: fullName(sharer.firstName, sharer.lastName),
+            sharerImageUrl: sharer.imageUrl ?? undefined,
             articleTitle: analysis.title,
-            factCount,
-            opinionCount,
-            fallacyCount,
-            missingCount,
-            manipulationScore,
-            fearScore,
             analysisUrl,
             appUrl,
           });
@@ -204,7 +167,8 @@ export async function DELETE(req: NextRequest) {
   }
 
   const analysisId = typeof body.analysisId === "string" ? body.analysisId : "";
-  const sharedWithUserId = typeof body.sharedWithUserId === "string" ? body.sharedWithUserId : "";
+  const sharedWithUserId =
+    typeof body.sharedWithUserId === "string" ? body.sharedWithUserId : "";
 
   if (!analysisId || !sharedWithUserId) {
     return NextResponse.json(
