@@ -4,6 +4,7 @@ import { DM_Sans, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import Image from "next/image";
 import { FileSearch } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
@@ -96,6 +97,7 @@ export default function RootLayout({
           <ThemeProvider>
             <Navbar />
             <main className="flex flex-1 flex-col">{children}</main>
+            <Toaster />
             <footer className="border-t border-border-subtle bg-background-subtle/70 px-4 py-8 sm:px-6">
               <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 text-sm text-text-secondary">

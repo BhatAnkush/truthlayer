@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Plus,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Card } from "@/components/ui/card";
@@ -43,16 +44,29 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const analyses = await prisma.analysis.findMany({
-    where: { createdBy: userId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      url: true,
-      createdAt: true,
-    },
-  });
+  const dashboardRows = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      title: string;
+      url: string | null;
+      createdAt: Date;
+      isPublic: boolean;
+      shareCount: number;
+    }>
+  >`
+    SELECT
+      a."id",
+      a."title",
+      a."url",
+      a."createdAt",
+      COALESCE(a."isPublic", false) AS "isPublic",
+      COUNT(s."id")::int AS "shareCount"
+    FROM "Analysis" a
+    LEFT JOIN "AnalysisShare" s ON s."analysisId" = a."id"
+    WHERE a."created_by" = ${userId}
+    GROUP BY a."id"
+    ORDER BY a."createdAt" DESC
+  `;
 
   return (
     <div className="min-h-screen bg-background px-4 py-10 text-text-primary sm:px-6 lg:px-8">
@@ -67,8 +81,8 @@ export default async function DashboardPage() {
               Your Previous Analyses
             </h1>
             <p className="mt-2 text-sm text-text-secondary">
-              {analyses.length}{" "}
-              {analyses.length === 1 ? "analysis" : "analyses"} saved
+              {dashboardRows.length}{" "}
+              {dashboardRows.length === 1 ? "analysis" : "analyses"} saved
             </p>
           </div>
 
@@ -81,7 +95,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {analyses.length === 0 ? (
+        {dashboardRows.length === 0 ? (
           <Card className="border-border bg-surface p-8 text-center">
             <h2 className="text-lg font-semibold text-text-primary">
               No analyses yet
@@ -99,7 +113,7 @@ export default async function DashboardPage() {
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {analyses.map((analysis) => {
+            {dashboardRows.map((analysis) => {
               const hostname = hostnameFromUrl(analysis.url);
 
               return (
@@ -124,6 +138,24 @@ export default async function DashboardPage() {
                           <Globe2 size={12} className="mr-1 inline-block" />
                           {hostname}
                         </p>
+                      )}
+
+                      {(analysis.isPublic || analysis.shareCount > 0) && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {analysis.isPublic ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent-subtle px-2 py-0.5 text-[11px] font-medium text-accent-dim">
+                              <Globe2 size={11} />
+                              Public
+                            </span>
+                          ) : null}
+
+                          {analysis.shareCount > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background-subtle px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                              <Users size={11} />
+                              {analysis.shareCount}
+                            </span>
+                          ) : null}
+                        </div>
                       )}
                     </div>
                   </Card>

@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Copy,
   Link2,
-  Share2,
   Check,
   ShieldAlert,
   Workflow,
@@ -13,6 +13,8 @@ import {
 import EvidenceBoard from "@/components/EvidenceBoard";
 import ManipulationScore from "@/components/ManipulationScore";
 import { BorderBeam } from "@/components/magicui/border-beam";
+import ShareModal from "@/components/ShareModal";
+import { Button } from "@/components/ui/button";
 import type { AnalysisResult } from "@/app/api/analyse/route";
 
 interface Props {
@@ -20,9 +22,20 @@ interface Props {
   title: string;
   url?: string;
   result: AnalysisResult;
+  isOwner: boolean;
+  isPublic: boolean;
+  initialSharedWith: string[];
 }
 
-export default function AnalysisClient({ id, title, url, result }: Props) {
+export default function AnalysisClient({
+  id,
+  title,
+  url,
+  result,
+  isOwner,
+  isPublic,
+  initialSharedWith,
+}: Props) {
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
@@ -67,13 +80,26 @@ export default function AnalysisClient({ id, title, url, result }: Props) {
             </a>
           )}
         </div>
-        <button
-          onClick={handleShare}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
-        >
-          {copied ? <Check size={14} /> : <Share2 size={14} />}
-          {copied ? "Copied!" : "Share"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+            className="gap-2"
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copied ? "Copied!" : "Copy link"}
+          </Button>
+
+          {isOwner ? (
+            <ShareModal
+              analysisId={id}
+              isPublic={isPublic}
+              analysisUrl={`https://truthlayer-eight-dusky.vercel.app/analysis/${id}`}
+              initialSharedWith={initialSharedWith}
+            />
+          ) : null}
+        </div>
       </header>
 
       {/* Main layout */}

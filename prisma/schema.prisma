@@ -7,15 +7,29 @@ datasource db {
   provider = "postgresql"
 }
 model Analysis {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   url       String?
   title     String
   rawText   String
   result    Json
-  createdAt DateTime @default(now())
-  createdBy String?  @map("created_by")
+  createdAt DateTime        @default(now())
+  createdBy String?         @map("created_by")
+  isPublic  Boolean         @default(false)
+  shares    AnalysisShare[]
 
   @@index([createdBy, createdAt])
+}
+
+model AnalysisShare {
+  id         String   @id @default(cuid())
+  analysisId String
+  sharedWith String
+  createdAt  DateTime @default(now())
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisId, sharedWith])
+  @@index([sharedWith])
 }
 
 model UserQuota {
