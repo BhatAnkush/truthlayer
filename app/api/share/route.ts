@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
         process.env.NEXT_PUBLIC_APP_URL ||
         "https://truthlayer-eight-dusky.vercel.app"
       ).replace(/\/$/, "");
+      const appIconUrl = `${appUrl}/lightlogo.svg`;
       const analysisUrl = `${appUrl}/analysis/${analysis.id}`;
 
       try {
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
             articleTitle: analysis.title,
             analysisUrl,
             appUrl,
+            appIconUrl,
           });
           emailSent = true;
         }

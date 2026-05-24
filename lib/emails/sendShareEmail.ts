@@ -9,6 +9,7 @@ type SendShareEmailProps = {
   articleTitle: string;
   analysisUrl: string;
   appUrl: string;
+  appIconUrl?: string;
 };
 
 function buildSubject(articleTitle: string): string {
@@ -50,6 +51,7 @@ export async function sendShareEmail(
     articleTitle: props.articleTitle,
     analysisUrl: props.analysisUrl,
     appUrl: props.appUrl,
+    appIconUrl: props.appIconUrl,
   });
 
   const text = `${greetingName(props.recipientName)}, ${props.sharerName} shared a TruthLayer analysis with you: ${props.analysisUrl}`;

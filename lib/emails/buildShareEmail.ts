@@ -4,11 +4,18 @@ type ShareEmailProps = {
   articleTitle: string;
   analysisUrl: string;
   appUrl: string;
+  appIconUrl?: string;
 };
 
 export function buildShareEmail(props: ShareEmailProps): string {
-  const { sharerName, sharerImageUrl, articleTitle, analysisUrl, appUrl } =
-    props;
+  const {
+    sharerName,
+    sharerImageUrl,
+    articleTitle,
+    analysisUrl,
+    appUrl,
+    appIconUrl,
+  } = props;
 
   const sharerInitial = sharerName[0]?.toUpperCase() ?? "?";
   const sharerFirst = sharerName.split(" ")[0];
@@ -31,7 +38,8 @@ export function buildShareEmail(props: ShareEmailProps): string {
 
   <!-- Logo -->
   <div style="text-align:center;padding-bottom:28px;">
-    <a href="${appUrl}" style="text-decoration:none;">
+    <a href="${appUrl}" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+      ${appIconUrl ? `<img src="${appIconUrl}" alt="TruthLayer" width="22" height="22" style="width:22px;height:22px;display:block;border-radius:6px;" />` : ""}
       <span style="font-size:15px;font-weight:600;color:#1A1C18;letter-spacing:-0.3px;">TruthLayer</span>
     </a>
   </div>
